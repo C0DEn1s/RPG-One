@@ -1,5 +1,7 @@
 extends KinematicBody2D
 
+const PlayerHurtSound = preload("res://Player/PlayerHurtSound.tscn")
+
 export var MAX_SPEED = 100
 export var ACCELARATION = 500
 export var FRICTION = 500
@@ -21,23 +23,28 @@ onready var animationTree = $AnimationTree
 onready var animationState = animationTree.get("parameters/playback")
 onready var swordHitbox = $HitBoxPivot/SwordHitBox
 onready var hurtbox = $HurtBox
+onready var blinkAnimationPlayer = $BlinkAnimationPlayer
 
 func _ready():
+	randomize()
 	stats.connect("no_health", self, "queue_free")
 	animationTree.active = true
 	swordHitbox.knockback_vector = roll_vector
+	hurtbox.collision_layer = 4
 
 func _physics_process(delta):
 	match state:
 		MOVE:
 			move_state(delta)
+		
 		ROLL:
-			roll_state(delta)
+			roll_state()
+		
 		ATTACK:
-			attack_state(delta)
+			attack_state()
 
 func move_state(delta):
-	var input_vector = Vector2()
+	var input_vector = Vector2.ZERO
 	input_vector.x = Input.get_action_strength("ui_right") - Input.get_action_strength("ui_left")
 	input_vector.y = Input.get_action_strength("ui_down") - Input.get_action_strength("ui_up")
 	input_vector.normalized()
@@ -63,12 +70,12 @@ func move_state(delta):
 	if Input.is_action_just_pressed("attack"):
 		state = ATTACK
 
-func roll_state(delta):
+func roll_state():
 	velocity = roll_vector * ROLL_SPEED
 	animationState.travel("Roll")
 	move()
 
-func attack_state(delta):
+func attack_state():
 	velocity = Vector2.ZERO
 	animationState.travel("Attack")
 
@@ -82,7 +89,16 @@ func roll_animation_finished():
 	velocity = velocity * 0.8
 	state = MOVE
 
-func _on_HurtBox_area_entered(area):
-	stats.health -= 1
-	hurtbox.start_invincibility(0.5)
-	hurtbox.create_hit_effect()
+func _on_HurtBox_area_entered(_area):
+	if _area.get('damage'):
+		stats.health -= _area.damage
+		hurtbox.start_invincibility(0.6)
+		hurtbox.create_hit_effect()
+		var playerHurtSound = PlayerHurtSound.instance()
+		get_tree().current_scene.add_child(playerHurtSound)
+
+func _on_HurtBox_invincibility_ended():
+	blinkAnimationPlayer.play("Stop")
+
+func _on_HurtBox_invincibility_started():
+	blinkAnimationPlayer.play("Start")
