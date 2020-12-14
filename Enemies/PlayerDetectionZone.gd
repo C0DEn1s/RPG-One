@@ -6,8 +6,9 @@ func can_see_player():
 	return player != null
 
 func _on_PlayerDetectionZone_body_entered(body):
-	if (body is KinematicBody2D):
+	if (body.name == "Player"):
 		player = body
 
 func _on_PlayerDetectionZone_body_exited(body):
-	player = null
+	if (body.name == "Player"):
+		player = null
